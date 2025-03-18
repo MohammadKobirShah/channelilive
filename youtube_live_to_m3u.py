@@ -1,22 +1,20 @@
 import subprocess
 import json
 
-# Replace with your YouTube channel URL
-YOUTUBE_CHANNEL_URL = "https://www.youtube.com/@ChanneliNews"  # Example: NASA Live
+# ✅ Replace with YouTube Channel URLs
+YOUTUBE_CHANNELS = [
+    "https://www.youtube.com/@ChanneliNews",       # Example: NASA Live
+    "https://www.youtube.com/@JamunaTVbd"        # Example: ESPN Live
+]
 
-# Video quality formats
-QUALITY_MAP = {
-    "144p": "160",
-    "240p": "133",
-    "360p": "134",
-    "480p": "135",
-    "720p": "136",
-    "1080p": "137",
-}
+# 🔥 Generate M3U Header
+m3u_content = "#EXTM3U\n"
 
-# Function to fetch channel name, logo, and live video ID
 def get_youtube_live_info(channel_url):
+    """Fetch YouTube Live Video Details using yt-dlp"""
     command = ["yt-dlp", "--dump-json", "-f", "best", channel_url]
+    print(f"🔍 Running: {' '.join(command)}")  
+
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
         video_info = json.loads(result.stdout)
@@ -24,40 +22,35 @@ def get_youtube_live_info(channel_url):
             "channel_name": video_info.get("uploader", "Unknown Channel"),
             "channel_logo": video_info.get("thumbnail", ""),
             "video_id": video_info.get("id", ""),
+            "formats": video_info.get("formats", [])  # Get all available formats
         }
     except Exception as e:
-        print(f"Error fetching channel info: {e}")
+        print(f"❌ Error fetching info: {e}")
         return None
 
-# Function to fetch live stream URLs for different qualities
-def get_live_stream_urls(video_id):
-    urls = {}
-    for quality, format_code in QUALITY_MAP.items():
-        command = ["yt-dlp", "--dump-json", "-f", format_code, f"https://www.youtube.com/watch?v={video_id}"]
-        try:
-            result = subprocess.run(command, capture_output=True, text=True, check=True)
-            video_info = json.loads(result.stdout)
-            urls[quality] = video_info["url"]
-        except Exception as e:
-            print(f"Error fetching {quality} stream: {e}")
-            urls[quality] = None
-    return urls
+# 🔄 Process Each YouTube Channel
+for channel_url in YOUTUBE_CHANNELS:
+    live_info = get_youtube_live_info(channel_url)
 
-# Generate an M3U file
-def generate_m3u(live_urls, channel_name, channel_logo, output_file="youtube_live.m3u"):
-    m3u_content = "#EXTM3U\n"
-    for quality, url in live_urls.items():
-        if url:
-            m3u_content += f'#EXTINF:-1 tvg-name="{channel_name}" tvg-logo="{channel_logo}", {channel_name} {quality}\n{url}\n'
+    if live_info and live_info["video_id"]:
+        channel_name = live_info["channel_name"]
+        channel_logo = live_info["channel_logo"]
+        video_id = live_info["video_id"]
+        formats = live_info["formats"]
 
-    with open(output_file, "w", encoding="utf-8") as file:
-        file.write(m3u_content)
+        # 🔀 Extract M3U8 URLs for Different Qualities
+        quality_map = {}
+        for fmt in formats:
+            if fmt.get("ext") == "m3u8":
+                quality_map[fmt["height"]] = fmt["url"]  # Store by resolution
 
-    print(f"M3U file generated: {output_file}")
+        # 🎥 Add Streams to M3U
+        m3u_content += f"\n#EXTINF:-1 tvg-logo=\"{channel_logo}\",{channel_name}\n"
+        for q in sorted(quality_map.keys()):  # Sort by resolution (low to high)
+            m3u_content += f"{quality_map[q]}\n"
 
-# Main Execution
-if __name__ == "__main__":
-    live_info = get_youtube_live_info(YOUTUBE_CHANNEL_URL)
-    if live_info:
-        live_stream_urls = get_live_stream_urls(live_info["video_id"])
-        generate_m3u(live_stream_urls, live_info["channel_name"], live_info["channel_logo"])
+# 📁 Save M3U File
+with open("youtube_live.m3u", "w", encoding="utf-8") as f:
+    f.write(m3u_content)
+
+print("✅ M3U File Updated Successfully!")
