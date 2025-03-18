@@ -16,7 +16,10 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y ffmpeg
-          pip install yt-dlp
+          pip install yt-dlp  
+
+      - name: Ensure M3U file exists
+        run: touch youtube_live.m3u  # Prevent errors if file is missing
 
       - name: Run YouTube Live to M3U script
         run: python youtube_live_to_m3u.py
