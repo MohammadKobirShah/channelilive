@@ -1,0 +1,30 @@
+name: Update YouTube Live M3U
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"  # Runs every 10 minutes
+  workflow_dispatch:
+
+jobs:
+  update_m3u:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+          pip install yt-dlp
+
+      - name: Run YouTube Live to M3U script
+        run: python youtube_live_to_m3u.py
+
+      - name: Commit and push M3U file
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add youtube_live.m3u
+          git commit -m "Updated YouTube Live M3U file" || echo "No changes to commit"
+          git push
